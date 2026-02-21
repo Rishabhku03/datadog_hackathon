@@ -3,10 +3,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   const pageInfoDiv = document.getElementById('pageInfo');
 
   let currentTab = null;
+  let capturedImageData = null;
 
   async function getActiveTab() {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     return tabs[0];
+  }
+
+  async function urlToBase64(url) {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Failed to convert to base64:', error);
+      return null;
+    }
+  }
+
+  async function uploadImage(base64, platform) {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'uploadToCloud',
+        imageBase64: base64,
+        platform: platform
+      });
+      return response;
+    } catch (error) {
+      console.error('Upload failed:', error);
+      throw error;
+    }
   }
 
   async function capturePageMedia(tab) {
@@ -196,7 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  async function updateUI(mediaData, metadata) {
+  async function updateUI(mediaData, metadata, uploadStatus) {
     if (!mediaData || !mediaData.media) return;
 
     const counts = mediaData.mediaCount;
@@ -215,6 +249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const gallerySection = document.getElementById('gallerySection');
     const imageGallery = document.getElementById('imageGallery');
     const viewMore = document.getElementById('viewMore');
+    const uploadStatusDiv = document.getElementById('uploadStatus');
 
     if (mediaData.media.images && mediaData.media.images.length > 0) {
       gallerySection.style.display = 'block';
@@ -259,19 +294,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       gallerySection.style.display = 'none';
     }
+
+    if (uploadStatus) {
+      if (uploadStatus.success) {
+        uploadStatusDiv.innerHTML = '<span style="color: green;">✓ Uploaded to GCS</span>';
+      } else {
+        uploadStatusDiv.innerHTML = '<span style="color: red;">✗ Upload failed</span>';
+      }
+      uploadStatusDiv.style.display = 'block';
+    } else {
+      uploadStatusDiv.style.display = 'none';
+    }
   }
 
   async function init() {
+    console.log('[AI Detector Popup] Starting init...');
     currentTab = await getActiveTab();
+    console.log('[AI Detector Popup] Current tab:', currentTab?.id);
 
     if (currentTab?.id) {
       try {
+        console.log('[AI Detector Popup] Capturing media...');
         const captureResult = await capturePageMedia(currentTab);
-        if (captureResult?.success) {
-          await updateUI(captureResult, captureResult.metadata);
+        console.log('[AI Detector Popup] Capture result:', captureResult?.success);
+        
+        if (captureResult?.success && captureResult.media?.images?.length > 0) {
+          const metadata = captureResult.metadata;
+          console.log('[AI Detector Popup] Image captured, platform:', metadata.platform);
+          
+          updateUI(captureResult, captureResult.media, { success: false });
+          document.getElementById('uploadStatus').innerHTML = '<span style="color: #666;">Uploading...</span>';
+          document.getElementById('uploadStatus').style.display = 'block';
+
+          const imageUrl = captureResult.media.images[0].src;
+          console.log('[AI Detector Popup] Converting to base64...');
+          const base64 = await urlToBase64(imageUrl);
+          
+          if (base64) {
+            console.log('[AI Detector Popup] Uploading to cloud...');
+            try {
+              const uploadResult = await uploadImage(base64, metadata.platform);
+              console.log('[AI Detector Popup] Upload result:', uploadResult);
+              if (uploadResult.success) {
+                document.getElementById('uploadStatus').innerHTML = '<span style="color: green;">✓ Uploaded to GCS</span>';
+              } else {
+                document.getElementById('uploadStatus').innerHTML = '<span style="color: red;">✗ Upload failed: ' + (uploadResult.error || 'Unknown error') + '</span>';
+              }
+            } catch (uploadError) {
+              console.error('[AI Detector Popup] Upload error:', uploadError);
+              document.getElementById('uploadStatus').innerHTML = '<span style="color: red;">✗ Upload error</span>';
+            }
+          } else {
+            console.log('[AI Detector Popup] Could not convert to base64');
+            document.getElementById('uploadStatus').innerHTML = '<span style="color: red;">✗ Could not process image</span>';
+          }
+          
+          await updateUI(captureResult, metadata, null);
+        } else {
+          console.log('[AI Detector Popup] No image captured');
         }
       } catch (error) {
-        console.log('Could not capture initial media:', error.message);
+        console.error('[AI Detector Popup] Init error:', error);
       }
     }
   }
