@@ -31,7 +31,9 @@ def upload_image(request):
     bq_client.insert_rows_json('datadog-hackthon.image_pipeline.image_metadata', [{
         'image_id': image_id,
         'gcs_url': gcs_path,
-        'captured_at': datetime.now().isoformat()
+        'captured_at': datetime.now().isoformat(),
+        'platform_name': platform,
+        'is_AIgen': None  # To be updated by Airia integration
     }])
     
     return ({'success': True, 'image_id': image_id, 'gcs_url': gcs_path}, 200, 
