@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Content Detector</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 360px;
+      min-height: 200px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      color: #333;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .content {
+      padding: 16px;
+    }
+
+    .status-card {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .status-card h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .media-counts {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .media-count {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .media-count .icon {
+      font-size: 16px;
+    }
+
+    .media-count .count {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .platform-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      margin-top: 8px;
+    }
+
+    .gallery-section {
+      margin-top: 12px;
+    }
+
+    .gallery-section h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .image-gallery {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .image-gallery.single-image {
+      grid-template-columns: 1fr;
+      max-height: none;
+    }
+
+    .image-gallery.single-image img {
+      height: 180px;
+    }
+
+    .image-gallery img {
+      width: 100%;
+      height: 70px;
+      object-fit: cover;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid #dee2e6;
+    }
+
+    .image-gallery img:hover {
+      transform: scale(1.05);
+      border-color: #667eea;
+    }
+
+    .no-images {
+      color: #999;
+      font-size: 12px;
+      text-align: center;
+      padding: 16px;
+    }
+
+    .view-more {
+      text-align: center;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #667eea;
+    }
+
+    .result {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .result.success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+
+    .result.error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+
+    .result-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .result-message {
+      font-weight: 500;
+    }
+
+    .result-details {
+      font-size: 12px;
+      margin-top: 8px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>AI Content Detector</h1>
+    <p>AI-generated image scanner</p>
+  </div>
+
+  <div class="content">
+    <div class="status-card">
+      <h3>Page Information</h3>
+      <div id="pageInfo">
+        <p style="font-size: 13px; color: #666;">Scanning page...</p>
+      </div>
+    </div>
+
+    <div class="status-card">
+      <h3>Image Detected</h3>
+      <div class="media-counts" id="mediaCounts">
+        <div class="media-count">
+          <span class="icon">🖼️</span>
+          <span class="count" id="imageCount">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="gallery-section" id="gallerySection" style="display: none;">
+      <h3>Captured Image</h3>
+      <div class="image-gallery" id="imageGallery"></div>
+      <div class="view-more" id="viewMore"></div>
+    </div>
+
+    <div id="result" class="result" style="display: none;"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
