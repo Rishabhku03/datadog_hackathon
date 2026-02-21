@@ -1,11 +1,12 @@
-# AGENTS.md - AI Content Detector Extension
+# AGENTS.md - AI Content Detector
 
 ## Project Overview
 
-This is a Chrome Extension (Manifest V3) for AI-generated content detection on social media. The project includes:
-- **Chrome Extension** (Vanilla JavaScript, no build system)
-- **Cloud Function** (Python 3.11, deployed on GCP)
-- **Data Pipeline** (GCS for storage, BigQuery for metadata)
+This is a Chrome Extension for AI-generated content detection on social media with GCP backend:
+- **Chrome Extension** (Manifest V3, Vanilla JavaScript)
+- **Cloud Function** (Python 3.11, GCP Cloud Functions)
+- **Data Pipeline** (GCS + BigQuery)
+- **Analytics** (LightDash + BigQuery)
 
 ## Project Structure
 
@@ -13,13 +14,23 @@ This is a Chrome Extension (Manifest V3) for AI-generated content detection on s
 ai-detector-extension/          # Chrome Extension (Manifest V3)
 ├── manifest.json               # Extension manifest
 ├── popup/                      # Extension popup UI
+│   ├── popup.html             # Popup HTML
+│   └── popup.js              # Popup logic (auto-capture + upload)
 ├── background/                 # Service worker
-├── content/                   # Content script
+│   └── background.js         # Cloud upload + messaging
+├── content/                    # Content script
+│   └── content.js            # (legacy, not used)
 └── icons/                     # Extension icons
 
 cloud_function/                # GCP Cloud Function
-├── main.py                    # Python function code
-└── requirements.txt            # Python dependencies
+├── main.py                    # Python function (GCS upload + BigQuery)
+└── requirements.txt           # Python dependencies
+
+lightdash/                    # LightDash analytics (YAML)
+├── models/                   # dbt models
+└── tables/                   # LightDash tables
+
+dbt_project.yml              # dbt project config
 ```
 
 ---
@@ -29,13 +40,13 @@ cloud_function/                # GCP Cloud Function
 ### Chrome Extension
 
 ```bash
-# Load extension in Chrome
+# Load unpacked extension
 # 1. Open chrome://extensions/
 # 2. Enable Developer mode
 # 3. Click "Load unpacked"
-# 4. Select ai-detector-extension/ directory
+# 4. Select ai-detector-extension/
 
-# Validate manifest.json (requires node_modules)
+# Validate manifest.json
 npx ajv validate -s node_modules/chrome-extension-manifest-schema/schema.json -d ai-detector-extension/manifest.json
 
 # Run ESLint
@@ -48,7 +59,7 @@ npx eslint ai-detector-extension/**/*.js --fix
 ### Cloud Function (GCP)
 
 ```bash
-# Deploy Cloud Function
+# Deploy
 gcloud functions deploy upload_image \
   --runtime python311 \
   --trigger-http \
@@ -57,24 +68,15 @@ gcloud functions deploy upload_image \
   --project datadog-hackthon \
   --source=./cloud_function
 
-# View Cloud Function logs
+# View logs
 gcloud functions logs read upload_image --region us-central1 --project datadog-hackthon --limit=10
-
-# Test Cloud Function locally
-functions-framework --target=upload_image
 ```
 
-### Manual Testing
+### BigQuery
 
-```bash
-# Chrome Extension Testing
-# 1. Load unpacked extension: chrome://extensions/
-# 2. Click "Service worker" for background console
-# 3. Test on supported sites: Reddit, Twitter, Facebook, Instagram, TikTok, YouTube, LinkedIn
-
-# View BigQuery data
-# Go to GCP Console > BigQuery > Run query:
-SELECT * FROM `datadog-hackthon.image_pipeline.image_metadata` ORDER BY captured_at DESC LIMIT 10;
+```sql
+-- View data
+SELECT * FROM `datadog-hackthon.image_pipeline.image_metadata` ORDER BY DESC LIMIT 10;
 ```
 
 ---
@@ -83,20 +85,20 @@ SELECT * FROM `datadog-hackthon.image_pipeline.image_metadata` ORDER BY captured
 
 ### JavaScript (Chrome Extension)
 
-**General Principles:**
-- Use **IIFE** wrapping `(function() { ... })();` for all extension scripts
-- Always use `'use strict';` at the top of every JavaScript file
+**General:**
+- Use **IIFE** for all extension scripts
+- Always use `'use strict';`
 - Use **2 spaces** for indentation
 - Use **single quotes** for strings
-- Maximum line length: **100 characters**
+- Max line length: **100 characters**
 
-**Naming Conventions:**
+**Naming:**
 | Element | Convention | Example |
 |---------|------------|---------|
-| Variables | camelCase | `capturedMedia`, `mediaCount` |
-| Constants | UPPER_SNAKE_CASE | `MEDIA_TYPES`, `STORAGE_KEYS` |
-| Functions | camelCase | `captureImages()`, `detectPlatform()` |
-| File names | kebab-case | `background.js`, `popup.js` |
+| Variables | camelCase | `capturedMedia` |
+| Constants | UPPER_SNAKE_CASE | `STORAGE_KEYS` |
+| Functions | camelCase | `captureImages()` |
+| File names | kebab-case | `background.js` |
 
 **Error Handling:**
 ```javascript
@@ -112,64 +114,60 @@ async function fetchData() {
 }
 ```
 
-**Chrome Extension Message Passing:**
+**Message Passing:**
 ```javascript
-// Always return true for async responses
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'capture') {
     handleCapture().then(result => sendResponse(result));
-    return true;
+    return true;  // Keep channel open
   }
 });
 ```
 
 ### Python (Cloud Function)
 
-**General Principles:**
-- Follow PEP 8 style guide
+**General:**
+- Follow PEP 8
 - Use **4 spaces** for indentation
-- Use **type hints** where appropriate
-- Maximum line length: **100 characters**
+- Use type hints where appropriate
+- Max line length: **100 characters**
 
-**Naming Conventions:**
+**Naming:**
 | Element | Convention | Example |
 |---------|------------|---------|
-| Variables | snake_case | `image_data`, `gcs_url` |
-| Constants | UPPER_SNAKE_CASE | `BUCKET_NAME`, `API_KEY` |
-| Functions | snake_case | `upload_image()`, `get_client()` |
-| File names | snake_case | `main.py`, `utils.py` |
+| Variables | snake_case | `image_data` |
+| Constants | UPPER_SNAKE_CASE | `BUCKET_NAME` |
+| Functions | snake_case | `upload_image()` |
+| File names | snake_case | `main.py` |
 
 **Error Handling:**
 ```python
 def upload_image(request):
     try:
-        # Process request
-        return {'success': True, 'data': result}, 200, headers
+        return {'success': True}, 200, {'Access-Control-Allow-Origin': '*'}
     except Exception as e:
-        return {'error': str(e)}, 500, headers
+        return {'error': str(e)}, 500, {'Access-Control-Allow-Origin': '*'}
 ```
 
 ---
 
 ## Configuration
 
-### API Keys
+### BigQuery Schema
+
+```sql
+ALTER TABLE `datadog-hackthon.image_pipeline.image_metadata`
+ADD COLUMN platform_name STRING,
+ADD COLUMN is_AIgen BOOL;
+```
+
+### Environment Variables / Secrets
 
 | Service | Location | Description |
 |---------|----------|-------------|
 | Airia | `background.js` - `AIRIA_CONFIG` | AI detection API |
 | GCP API Key | `background.js` - `CLOUD_CONFIG` | GCS/BigQuery access |
-| Cloud Function | `background.js` - `functionUrl` | Upload endpoint |
-
-### BigQuery Schema
-
-```sql
-CREATE TABLE image_metadata (
-  image_id STRING,
-  gcs_url STRING,
-  captured_at TIMESTAMP
-);
-```
+| Cloud Function URL | `background.js` - `functionUrl` | Upload endpoint |
 
 ---
 
@@ -178,14 +176,12 @@ CREATE TABLE image_metadata (
 ### Adding a New Platform
 
 1. Add URL pattern to `manifest.json` → `content_scripts[].matches`
-2. Add platform detection in popup.js → `detectPlatform()`
+2. Add platform detection in `popup.js` → `detectPlatform()`
 3. Test on the platform
 
 ### Deploying Cloud Function
 
 ```bash
-# Update main.py with new logic
-# Redeploy
 gcloud functions deploy upload_image \
   --runtime python311 \
   --trigger-http \
@@ -198,13 +194,13 @@ gcloud functions deploy upload_image \
 ### Debugging
 
 ```bash
-# View service worker console
+# Service worker console
 # chrome://extensions/ > Find extension > Click "Service worker"
 
-# View Cloud Function logs
+# Cloud Function logs
 gcloud functions logs read upload_image --region us-central1 --project datadog-hackthon
 
-# View BigQuery data
+# BigQuery
 # GCP Console > BigQuery > Run SQL query
 ```
 
@@ -212,8 +208,8 @@ gcloud functions logs read upload_image --region us-central1 --project datadog-h
 
 ## Security Guidelines
 
-- **NEVER commit API keys** - Use environment variables or chrome.storage
-- Validate all data from external sources
-- Use minimum required permissions in manifest.json
-- Sanitize user input before DOM manipulation
-- Python: Use parameterized queries for BigQuery insertions
+- **NEVER commit API keys** - Use chrome.storage for user keys
+- Validate all external data
+- Use minimum permissions in manifest.json
+- Sanitize DOM input
+- Python: Use parameterized queries
