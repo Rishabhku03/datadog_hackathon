@@ -1,0 +1,45 @@
+version: 2
+
+tables:
+  - name: image_metadata
+    description: "AI Content Detector - Image metadata table"
+    schema: image_pipeline
+    
+    columns:
+      - name: image_id
+        description: "Unique identifier for the image"
+        meta:
+          label: "Image ID"
+          dimension:
+            type: string
+        
+      - name: gcs_url
+        description: "Google Cloud Storage URL"
+        meta:
+          label: "GCS URL"
+          dimension:
+            type: string
+        
+      - name: captured_at
+        description: "Timestamp when image was captured"
+        meta:
+          label: "Captured At"
+          dimension:
+            type: timestamp
+        
+      - name: platform_name
+        description: "Platform where image was captured"
+        meta:
+          label: "Platform"
+          dimension:
+            type: string
+        
+      - name: is_AIgen
+        description: "Whether the image was detected as AI-generated"
+        meta:
+          label: "AI Generated"
+          dimension:
+            type: yesno
+
+    meta:
+      label: "Image Metadata"

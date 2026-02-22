@@ -1,0 +1,9 @@
+version: 2
+
+models:
+  - name: image_metadata
+    description: AI Content Detector - Image metadata table
+    meta:
+      label: Image Metadata
+    schema: image_pipeline
+    columns: []

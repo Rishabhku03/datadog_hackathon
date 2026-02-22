@@ -6,7 +6,7 @@ const AIRIA_CONFIG = {
 
 const CLOUD_CONFIG = {
   functionUrl: 'https://us-central1-datadog-hackthon.cloudfunctions.net/upload_image',
-  apiKey: 'AIzaSyBQTCpDOWoXL57QqnpSjOBjDZVLXQQKc24'
+  apiKey: ''
 };
 
 const STORAGE_KEYS = {

@@ -1,0 +1,6 @@
+name: ai_detector
+config-version: 2
+profile: ai-detector
+
+vars:
+  datasource: bigquery
